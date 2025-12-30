@@ -10,7 +10,7 @@ def main():
     invitations = read_invitations(configs)
     invite_status_rows = []
     for invitation in invitations:
-        invite_status, app_name, grp_name, desc = checkmarx.invite_to_application(invitation)
+        invite_status, app_name, grp_name, desc = checkmarx.invite_group_to_application(invitation)
         status_row = {
             'app_name' : app_name,
             'group_name' : grp_name,

@@ -11,10 +11,10 @@ class InviteStatus(str, Enum):
     SKIP = "skip"
     FAILED = "failed"
 
-def invite_to_application(invitation: dict) -> tuple[InviteStatus, str, str, str]:
+def invite_group_to_application(invitation: dict) -> tuple[InviteStatus, str, str, str]:
     app_name = invitation["app_name"]
     app = fetch_application_by_name(app_name)
-    if not app:
+    if not app or ('applications' in app and len(app['applications']) == 0):
         log_msg = f'unable to fetch application by name: {app_name}'
         internal_log.error_log(log_msg)
         return InviteStatus.FAILED, app_name, "unknown", log_msg
@@ -45,10 +45,13 @@ def invite_to_application(invitation: dict) -> tuple[InviteStatus, str, str, str
         log_msg = f'unable to assign group name: {grp_name} to the application: {app_name}'
         internal_log.error_log(log_msg)
         return InviteStatus.FAILED, app_name, grp_name, log_msg
+    
+    return InviteStatus.DONE, app_name, grp_name, ""
 
+def invite_emails_to_group():
     # emails = invitation["email_list"]
     # invite_email_to_group(grp_id, emails)
-    return InviteStatus.DONE, app_name, grp_name, ""
+    return
 
 def invite_email_to_group(grp_id: str, email_list: list):
     for email in email_list:
@@ -70,6 +73,7 @@ def login():
             resp = response.json()
             global token 
             token = resp["access_token"]
+            internal_log.info_log(f'succesfully login')
         else:
             internal_log.error_log(f"unable to login: {response.text}")
             
@@ -78,7 +82,7 @@ def login():
 
 def fetch_application_by_name(app_name: int) -> dict:
     url = f'https://sng.ast.checkmarx.net/api/applications?name={app_name}'
-    data = call_api_get(url)
+    data = call_api_get(url, api_name='fetch-application-by-name')
     if not isinstance(data, dict):
         internal_log.error_log(f"failed to get app for app_name: {app_name}")
         return
@@ -87,7 +91,7 @@ def fetch_application_by_name(app_name: int) -> dict:
 
 def fetch_application_by_id(app_id: int) -> dict:
     url = f'https://sng.ast.checkmarx.net/api/applications/{app_id}'
-    data = call_api_get(url)
+    data = call_api_get(url, api_name='fetch-application-by-id')
     if not isinstance(data, dict):
         internal_log.error_log(f"failed to get app for app_id: {app_id}")
         return
@@ -100,7 +104,7 @@ def create_group(grp_name: str, checkmarx_tenant: str) -> bool:
         "name": grp_name
     }
     try:
-        resp = call_api_post(url, payload=payload)
+        resp = call_api_post(url, payload=payload, api_name='create-group')
     except Exception as e:
         return False
 
@@ -108,7 +112,7 @@ def create_group(grp_name: str, checkmarx_tenant: str) -> bool:
 
 def fetch_group_by_name(grp_name: str) -> dict:
     url = f'https://sng.ast.checkmarx.net/api/access-management/groups?search={grp_name}&limit=1'
-    data = call_api_get(url)
+    data = call_api_get(url, api_name='fetch-group-by-name')
     if not isinstance(data, list):
         internal_log.error_log(f"failed to get group for group_name: {grp_name}")
         return
@@ -120,13 +124,13 @@ def fetch_group_by_name(grp_name: str) -> dict:
 
 def check_access(resource_type: str, resource_id: str):
     url = f'https://sng.ast.checkmarx.net/api/access-management/has-access?action=update-access&resource-id={resource_id}&resource-type={resource_type}'
-    resp = call_api_get(url=url)
+    resp = call_api_get(url=url, api_name='check-access')
     internal_log.info_log(f'checkAccess resp {resp}')
 
 def check_is_assign_group(grp_id: str, app_id: str)->bool:
     url = f'https://sng.ast.checkmarx.net/api/access-management?entity-id={grp_id}&resource-id={app_id}'
 
-    resp = call_api_get(url=url)
+    resp = call_api_get(url=url, api_name='check-assignment-group-to-application')
     if isinstance(resp, dict):
         hasResourceFields = 'resourceID' in resp and 'resourceType' in resp and not resp['resourceID'] == "" and resp['resourceType'] == 'application'
         if hasResourceFields:
@@ -143,7 +147,7 @@ def assign_group_to_application(grp_id: str, application_id: str) -> bool:
         "resourceType": "application"
     }
 
-    resp = call_api_post(url=url, payload=payload)
+    resp = call_api_post(url=url, payload=payload, api_name='assign-group-to-app')
     if not resp is None:
         return True
     
@@ -162,7 +166,7 @@ def assign_user_to_group(email: str, grp_id: str):
 # |                                                     |
 # ------------------------helper------------------------ #
 
-def call_api_get(url: str) -> dict:
+def call_api_get(url: str, api_name: str) -> dict:
     try:
         headers = {
             'Accept': 'application/json',
@@ -172,11 +176,11 @@ def call_api_get(url: str) -> dict:
         if response.status_code == 200:
             return response.json()
         else:
-            internal_log.error_log(f"unable to call GET for: url {url} \t\terror_code: {response.status_code}\t\terror_msg: {response.text}")
+            internal_log.error_log(f"unable to call GET for: api {api_name} \t\terror_code: {response.status_code}\t\terror_msg: {response.text}")
     except Exception as e:
-        internal_log.error_log(f"unable to call GET with unhandle error: {e}")
+        internal_log.error_log(f"unable to call GET API {api_name} with unhandle error: {e}")
 
-def call_api_post(url, payload) -> dict:
+def call_api_post(url: str, payload: dict, api_name: str) -> dict:
     try:
         headers = {
             'Accept': 'application/json',
@@ -190,7 +194,7 @@ def call_api_post(url, payload) -> dict:
             except ValueError:
                 return {}
         else:
-            internal_log.error_log(f"unable to call POST for: url {url} \t\terror_code: {response.status_code}\t\terror_msg: {response.text}")
+            internal_log.error_log(f"unable to call POST for: api {api_name} \t\terror_code: {response.status_code}\t\terror_msg: {response.text}")
     except Exception as e:
-        internal_log.error_log(f"unable to call POST with unhandle error: {e}")
+        internal_log.error_log(f"unable to call POST API {api_name} with unhandle error: {e}")
 
