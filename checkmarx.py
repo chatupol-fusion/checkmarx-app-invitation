@@ -48,9 +48,15 @@ def invite_group_to_application(invitation: dict) -> tuple[InviteStatus, str, st
     
     return InviteStatus.DONE, app_name, grp_name, ""
 
+def invoke_group_from_app():
+    return
+
 def invite_emails_to_group():
     # emails = invitation["email_list"]
     # invite_email_to_group(grp_id, emails)
+    return
+
+def invite_emails_to_app():
     return
 
 def invite_email_to_group(grp_id: str, email_list: list):
@@ -119,6 +125,16 @@ def fetch_group_by_name(grp_name: str) -> dict:
     
     if len(data) == 0:
         return {}
+
+    return data[0]
+
+def delete_group_from_app(grp_id: str, app_id: str) -> dict:
+    # X23: never test yet
+    url = f'https://sng.ast.checkmarx.net/api/access-management?entity-id={grp_id}&resource-id={app_id}'
+    data = call_api_delete(url, api_name='invoke-group-from-app')
+    if not isinstance(data, list):
+        internal_log.error_log(f"failed to invoke group: {grp_id} from application {app_id}")
+        return
 
     return data[0]
 
@@ -197,4 +213,18 @@ def call_api_post(url: str, payload: dict, api_name: str) -> dict:
             internal_log.error_log(f"unable to call POST for: api {api_name} \t\terror_code: {response.status_code}\t\terror_msg: {response.text}")
     except Exception as e:
         internal_log.error_log(f"unable to call POST API {api_name} with unhandle error: {e}")
+
+def call_api_delete(url: str, api_name: str) -> dict:
+    try:
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {token}'
+        }
+        response = requests.delete(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            internal_log.error_log(f"unable to call DELETE for: api {api_name} \t\terror_code: {response.status_code}\t\terror_msg: {response.text}")
+    except Exception as e:
+        internal_log.error_log(f"unable to call DELETE API {api_name} with unhandle error: {e}")
 

@@ -23,16 +23,23 @@ def main():
                 }
                 invite_status_rows.append(status_row)
             internal_log.generate_result_csv_with_timestamp(invite_status_rows)
-        case _:
+        case 'invoke-grp-from-app':
             msg = f'the action \'{action}\' is not implemented yet'
+            internal_log.error_log(msg)
+        case 'email-to-grp':
+            msg = f'the action \'{action}\' is not implemented yet'
+            internal_log.error_log(msg)
+        case 'email-to-app':
+            msg = f'the action \'{action}\' is not implemented yet'
+            internal_log.error_log(msg)
+        case _:
+            msg = f'the action \'{action}\' is unknown'
             internal_log.error_log(msg)
 
 def init_config(filepath_config: str, overide_configs: dict) -> dict:
     configs = helper.read_config(filepath_config)
     if not overide_configs and not overide_configs['invitation_file_path'] == "":
         configs['invitations_csv_filepath'] = overide_configs['invitation_file_path']
-    if not overide_configs and not overide_configs['action'] == "":
-        configs['action'] = overide_configs['action']
 
     return configs
 

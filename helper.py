@@ -7,7 +7,7 @@ def read_args() -> tuple[str, dict]:
     parser = argparse.ArgumentParser(description="My Python Script CLI")
     parser.add_argument("--config", type=str,default="configs.yaml", required=False, help="The path to the configs file")
     parser.add_argument("--invitation-file", type=str,default="data/invitation.csv", required=False, help="The path to the invitation file, overide configuation")
-    parser.add_argument("--action", type=str,default="configs.yaml", required=False, help="The action includes [grp-to-app, email-to-grp, invoke-grp-from-app]")
+    parser.add_argument("--action", type=str, default="grp-to-app", required=False, help="The action includes [grp-to-app, invoke-grp-from-app, email-to-grp, email-to-app]")
     args = parser.parse_args()
     overide_configs = {
         'invitation_file_path': args.invitation_file,
